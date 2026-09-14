@@ -9,8 +9,10 @@
 //! or a NUL, which no text carries and which is the surest sign of bytes that
 //! are only bytes — and says at which byte it stopped reading. Encoding is
 //! not converted here; a Stream in another encoding is a transport's or a
-//! transformation's to bring to UTF-8.
+//! transformation's to bring to UTF-8. The check is the Foundation's
+//! [`record::text`], the one `csv` and `fixed-width` make (ADR-0044).
 
+use message::record;
 use message::{Part, Shape, ShapeError, Shaped};
 use stream::Stream;
 
@@ -29,16 +31,6 @@ const MEDIA_TYPES: &[&str] = &[
     "text/x-log",
 ];
 
-/// Where the bytes stop being text, if they do.
-fn first_non_text(bytes: &[u8]) -> Option<(usize, &'static str)> {
-    if let Some(at) = bytes.iter().position(|byte| *byte == 0) {
-        return Some((at, "a NUL byte"));
-    }
-    std::str::from_utf8(bytes)
-        .err()
-        .map(|error| (error.valid_up_to(), "not UTF-8"))
-}
-
 impl Shape for Text {
     fn technology(&self) -> &'static str {
         "text"
@@ -49,13 +41,11 @@ impl Shape for Text {
     }
 
     fn recognises(&self, bytes: &[u8]) -> bool {
-        first_non_text(bytes).is_none()
+        record::text(bytes).is_ok()
     }
 
     fn shape(&self, stream: &Stream) -> Result<Shaped, ShapeError> {
-        if let Some((at, reason)) = first_non_text(stream.bytes()) {
-            return Err(ShapeError::new("text", reason).at(at));
-        }
+        record::text(stream.bytes()).map_err(|stop| ShapeError::refused("text", stop))?;
         let media = stream
             .media_type()
             .map_or_else(|| "text/plain".to_string(), str::to_string);
