@@ -40,7 +40,7 @@ impl Shape for Text {
         MEDIA_TYPES
     }
 
-    fn recognises(&self, bytes: &[u8]) -> bool {
+    fn recognizes(&self, bytes: &[u8]) -> bool {
         record::text(bytes).is_ok()
     }
 
@@ -101,14 +101,14 @@ mod tests {
     }
 
     #[test]
-    fn the_shape_claims_plain_text_and_recognises_utf8_without_nul() {
+    fn the_shape_claims_plain_text_and_recognizes_utf8_without_nul() {
         assert_eq!(Text.technology(), "text");
         assert!(Text.media_types().contains(&"text/plain"));
         assert!(Text.media_types().contains(&"text/html"));
-        assert!(Text.recognises(b"hello"));
-        assert!(Text.recognises("ünïcödé".as_bytes()));
-        assert!(!Text.recognises(b"\x80"));
-        assert!(!Text.recognises(b"a\x00b"));
+        assert!(Text.recognizes(b"hello"));
+        assert!(Text.recognizes("ünïcödé".as_bytes()));
+        assert!(!Text.recognizes(b"\x80"));
+        assert!(!Text.recognizes(b"a\x00b"));
     }
 
     #[test]
@@ -121,7 +121,7 @@ mod tests {
             fn media_types(&self) -> &'static [&'static str] {
                 &[]
             }
-            fn recognises(&self, _: &[u8]) -> bool {
+            fn recognizes(&self, _: &[u8]) -> bool {
                 true
             }
             fn shape(&self, stream: &Stream) -> Result<Shaped, ShapeError> {
