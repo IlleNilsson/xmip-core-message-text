@@ -45,12 +45,13 @@ impl Shape for Text {
     }
 
     fn shape(&self, stream: &Stream) -> Result<Shaped, ShapeError> {
-        record::text(stream.bytes()).map_err(|stop| ShapeError::refused("text", stop))?;
+        let bytes = message::loaded(self.technology(), stream)?;
+        record::text(bytes).map_err(|stop| ShapeError::refused("text", stop))?;
         let media = stream
             .media_type()
             .map_or_else(|| "text/plain".to_string(), str::to_string);
         Ok(Shaped {
-            parts: vec![Part::new(None, stream.bytes(), Some(media))],
+            parts: vec![Part::new(None, bytes, Some(media))],
             message_type: None,
         })
     }
@@ -126,17 +127,18 @@ mod tests {
             }
             fn shape(&self, stream: &Stream) -> Result<Shaped, ShapeError> {
                 Ok(Shaped {
-                    parts: vec![Part::whole(stream)],
+                    parts: vec![Part::whole(self.technology(), stream)?],
                     message_type: None,
                 })
             }
         }
         let shapes: [&dyn Shape; 2] = [&Text, &Everything];
-        let by_media = message::choose(&shapes, &stream(b"\xff", Some("Text/Plain")));
+        let by_media =
+            message::choose(&shapes, &stream(b"\xff", Some("Text/Plain"))).expect("held");
         assert_eq!(by_media.map(Shape::technology), Some("text"));
-        let by_look = message::choose(&shapes, &stream(b"plain words", None));
+        let by_look = message::choose(&shapes, &stream(b"plain words", None)).expect("held");
         assert_eq!(by_look.map(Shape::technology), Some("text"));
-        let not_text = message::choose(&shapes, &stream(b"\x00\x01", None));
+        let not_text = message::choose(&shapes, &stream(b"\x00\x01", None)).expect("held");
         assert_eq!(not_text.map(Shape::technology), Some("everything"));
     }
 }
